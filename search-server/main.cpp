@@ -87,7 +87,7 @@ public:
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
         for (const auto& stop_word : stop_words) {
             if (!IsValidWord(stop_word)) {
-                throw invalid_argument("Документ не был добавлен, так как содержит спецсимволы"s);
+                throw invalid_argument("Документ не был добавлен, слово \""s + stop_word +"\" содержит спецсимволы"s); 
             }
         }
     }
@@ -133,7 +133,7 @@ public:
         if (result.size() > MAX_RESULT_DOCUMENT_COUNT) {
             result.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
-        
+
         return result;
     }
 
@@ -205,7 +205,7 @@ private:
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)) { 
-                throw invalid_argument("Документ не был добавлен, так как содержит спецсимволы"s); 
+                throw invalid_argument("Документ не был добавлен, слово \""s + word +"\" содержит спецсимволы"s); 
             } 
             if (!IsStopWord(word)) {
                 words.push_back(word);
@@ -333,9 +333,16 @@ int main() {
     try {
         search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, {7, 2, 7});
         search_server.AddDocument(-1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2});
+    } catch (const invalid_argument& e) {
+        cout << e.what() << endl;
+    }
+    try {
         search_server.AddDocument(1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2});
+    } catch (const invalid_argument& e) {
+        cout << e.what() << endl;
+    }
+    try {
         search_server.AddDocument(3, "большой пёс скво\x12рец"s, DocumentStatus::ACTUAL, {1, 3, 2});
-        
     } catch (const invalid_argument& e) {
         cout << e.what() << endl;
     }
