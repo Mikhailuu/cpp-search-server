@@ -8,6 +8,7 @@
 #include <vector>
 #include <optional>
 #include <stdexcept>
+#include <numeric>
 
 using namespace std;
 
@@ -81,7 +82,6 @@ enum class DocumentStatus {
 
 class SearchServer {
 public:
-    inline static constexpr int INVALID_DOCUMENT_ID = -1;
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
@@ -106,26 +106,20 @@ public:
         if (documents_.count(document_id) == 1) {
             throw invalid_argument("Документ не был добавлен, так как его id совпадает с уже имеющимся"s);
         }
+        indexes_.push_back(document_id);
+        documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
+
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
-            if (!IsValidWord(word)) {
-                throw invalid_argument("Документ не был добавлен, так как содержит спецсимволы"s);
-            }        
-        }
-        for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
         }
-        documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
     }
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query,
                                       DocumentPredicate document_predicate) const {
-        Query query;
-        if (!ParseQuery(raw_query, query)) {
-            throw invalid_argument("invalid_argument"s);
-        }
+        const Query query = ParseQuery(raw_query);
         vector<Document> result = FindAllDocuments(query, document_predicate);
 
         sort(result.begin(), result.end(),
@@ -139,6 +133,7 @@ public:
         if (result.size() > MAX_RESULT_DOCUMENT_COUNT) {
             result.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
+        
         return result;
     }
 
@@ -159,11 +154,9 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
                                     int document_id) const {
-        Query query;
-        if (!ParseQuery(raw_query, query)) {
-            throw invalid_argument("invalid_argument"s);
-        }
+        const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
+
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
@@ -181,15 +174,15 @@ public:
                 break;
             }
         }
+        
         return tuple{matched_words, documents_.at(document_id).status};
     }
 
     int GetDocumentId(int index) const {
         if (0 <= index && index < static_cast<int>(documents_.size())) {
-            auto it = documents_.begin();
-            advance(it, index);
-            return it->first;
+            return indexes_.at(index);
         }
+
         throw out_of_range("out_of_range"s);
     }
     
@@ -201,6 +194,8 @@ private:
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
+    vector<int> indexes_;
+
 
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
@@ -209,6 +204,9 @@ private:
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
         for (const string& word : SplitIntoWords(text)) {
+            if (!IsValidWord(word)) { 
+                throw invalid_argument("Документ не был добавлен, так как содержит спецсимволы"s); 
+            } 
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
@@ -220,10 +218,8 @@ private:
         if (ratings.empty()) {
             return 0;
         }
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+
+        int rating_sum = accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
@@ -236,6 +232,15 @@ private:
     QueryWord ParseQueryWord(string text) const {
         bool is_minus = false;
         // Word shouldn't be empty
+        if (!IsValidWord(text)) {
+                throw invalid_argument("Документ не был добавлен, так как содержит спецсимволы"s); 
+        }
+        if (text[0] == '-' && text.size() == 1) {
+                throw invalid_argument("Документ не был добавлен, так как слово пустое"s); 
+        }
+        if (text[0] == '-' && text[1] == '-') {
+            throw invalid_argument("Документ не был добавлен, так как содержит два минуса"s); 
+        }
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
@@ -248,11 +253,10 @@ private:
         set<string> minus_words;
     };
 
-    [[nodiscard]] bool ParseQuery(const string& text, Query& query) const {
+    Query ParseQuery(const string& text) const {
+        Query query;
+        
         for (const string& word : SplitIntoWords(text)) {
-            if (!IsValidWord(word) || (word[0] == '-' && word.size() == 1) || (word[0] == '-' && word[1] == '-')) {
-                return false;
-            }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
@@ -262,7 +266,8 @@ private:
                 }
             }
         }
-        return true;
+
+        return query;
     }
 
     // Existence required
