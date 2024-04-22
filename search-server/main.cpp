@@ -139,7 +139,7 @@ public:
 
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const {
         return FindTopDocuments(
-            raw_query, [status](int /*document_id*/, DocumentStatus document_status, int /*rating*/) {
+            raw_query, [status](int, DocumentStatus document_status, int) {
                 return document_status == status;
             });
     }
@@ -179,11 +179,7 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if (0 <= index && index < static_cast<int>(documents_.size())) {
-            return indexes_.at(index);
-        }
-
-        throw out_of_range("out_of_range"s);
+        return indexes_.at(index);
     }
     
 private:
@@ -354,4 +350,6 @@ int main() {
     } catch (const invalid_argument& e) {
         cout << e.what() << endl;
     }
+
+    cout << search_server.GetDocumentId(100) << endl;
 }
