@@ -114,14 +114,14 @@ std::vector<Document> SearchServer::FindTopDocuments(const std::string& raw_quer
 
     sort(matched_documents.begin(), matched_documents.end(),
          [this](const Document& lhs, const Document& rhs) {
-             if (std::abs(lhs.relevance - rhs.relevance) < EPSILON) {
-                 return lhs.rating > rhs.rating;
+             if (std::abs(lhs.relevance_ - rhs.relevance_) < EPSILON) {
+                 return lhs.rating_ > rhs.rating_;
              } else {
-                 return lhs.relevance > rhs.relevance;
+                 return lhs.relevance_ > rhs.relevance_;
              }
          });
-    if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-        matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
+    if (matched_documents.size() > static_cast<size_t>(MAX_RESULT_DOCUMENT_COUNT)) {
+        matched_documents.resize(static_cast<size_t>(MAX_RESULT_DOCUMENT_COUNT));
     }
 
 return matched_documents;

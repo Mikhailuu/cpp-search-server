@@ -23,7 +23,7 @@ private:
     std::deque<QueryResult> requests_;
     const static int min_in_day_ = 1440;
     const SearchServer& search_server_;
-    int no_results_requests_;
+    int no_results_requests_ = 0;
     uint64_t current_time_;
 
     void AddRequest(int results_num);

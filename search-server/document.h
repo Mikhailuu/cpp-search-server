@@ -12,14 +12,14 @@ struct Document {
     Document() = default;
 
     Document(int id, double relevance, int rating)
-        : id(id)
-        , relevance(relevance)
-        , rating(rating) {
+        : id_(id)
+        , relevance_(relevance)
+        , rating_(rating) {
     }
 
-    int id = 0;
-    double relevance = 0.0;
-    int rating = 0;
+    int id_ = 0;
+    double relevance_ = 0.0;
+    int rating_ = 0;
 };
 
 std::ostream& operator<<(std::ostream& out, const Document& document);
